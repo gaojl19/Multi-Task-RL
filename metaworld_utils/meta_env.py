@@ -134,6 +134,8 @@ class MTEnv(MultiClassMultiTaskEnv):
 
 
 def generate_single_task_env(env_id, kwargs):
+    # print(globals()[env_id](**kwargs))
+    # exit(0)
     env = globals()[env_id](**kwargs)
     env = SingleWrapper(env)
     return env

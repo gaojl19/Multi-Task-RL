@@ -70,14 +70,19 @@ def experiment(args):
         input_shape = env.observation_space.shape[0], 
         output_shape = 2 * env.action_space.shape[0],
         **params['net'] )
+    print("pf: ", pf)
+    
     qf1 = networks.FlattenNet( 
         input_shape = env.observation_space.shape[0] + env.action_space.shape[0],
         output_shape = 1,
         **params['net'] )
+    print("qf1: ", qf1)
+    
     qf2 = networks.FlattenNet( 
         input_shape = env.observation_space.shape[0] + env.action_space.shape[0],
         output_shape = 1,
         **params['net'] )
+    print("qf2: ", qf2)
 
     example_ob = env.reset()
     example_dict = { 

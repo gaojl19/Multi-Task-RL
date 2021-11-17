@@ -1,0 +1,12 @@
+{
+    "reach-v1": "SawyerReachPushPickPlaceEnv", 
+    "push-v1": "SawyerReachPushPickPlaceEnv",
+    "pick-place-v1": "SawyerReachPushPickPlaceEnv", 
+    "door-v1": "SawyerDoorEnv", 
+    "drawer-open-v1": "SawyerDrawerOpenEnv", 
+    "drawer-close-v1": "SawyerDrawerCloseEnv",
+    "button-press-topdown-v1": "SawyerButtonPressTopdownEnv", 
+    "ped-insert-side-v1": "SawyerPegInsertionSideEnv",
+    "window-open-v1": "SawyerWindowOpenEnv",
+    "window-close-v1": "SawyerWindowCloseEnv"
+}

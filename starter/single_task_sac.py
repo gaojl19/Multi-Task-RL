@@ -18,6 +18,7 @@ from torchrl.utils import Logger
 
 args = get_args()
 params = get_params(args.config)
+TASK_ENV_DICT = get_params("metaworld_utils/task_env.json")
 
 import torchrl.policies as policies
 import torchrl.networks as networks
@@ -34,6 +35,7 @@ from torchrl.collector.para.async_mt import AsyncMultiTaskParallelCollectorUnifo
 
 from torchrl.replay_buffers.shared import SharedBaseReplayBuffer
 from torchrl.replay_buffers.shared import AsyncSharedReplayBuffer
+from metaworld.envs.mujoco.env_dict import EASY_MODE_CLS_DICT, EASY_MODE_ARGS_KWARGS
 import gym
 
 from metaworld_utils.meta_env import get_meta_env
@@ -41,11 +43,14 @@ from metaworld_utils.meta_env import get_meta_env
 def experiment(args):
 
     device = torch.device("cuda:{}".format(args.device) if args.cuda else "cpu")
-
-    env, cls_dicts, cls_args = get_meta_env(params['env_name'], params['env'], params['meta_env'])
     
-    # print("cls_dicts: ", cls_dicts) 'reach-v1': <class 'metaworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place.SawyerReachPushPickPlaceEnv'>
-    # print("cls_args: ", cls_args)  'reach-v1': {'args': [], 'kwargs': {'obs_type': 'plain', 'task_type': 'reach'}}
+    # print("get_meta_env params: ", params['env_name'], params['env'], params['meta_env'])
+    env_name = TASK_ENV_DICT[params['task_name']]
+    
+    #env, cls_dicts, cls_args = get_meta_env(params['env_name'], params['env'], params['meta_env'])
+    env = get_meta_env(env_name, params['env'], params['meta_env'], return_dicts=False)
+    cls_dicts = {params['task_name']:EASY_MODE_CLS_DICT[params['task_name']]}
+    cls_args = {params['task_name']:EASY_MODE_ARGS_KWARGS[params['task_name']]}
 
     env.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -68,21 +73,29 @@ def experiment(args):
     import torch.multiprocessing as mp
     mp.set_start_method('spawn', force=True)
 
+    # print("num tasks: ", env.num_tasks)
     pf = policies.MultiHeadGuassianContPolicy (
         input_shape = env.observation_space.shape[0], 
         output_shape = 2 * env.action_space.shape[0],
         head_num=env.num_tasks,
         **params['net'] )
+
+    print("pf: ", pf)
     qf1 = networks.FlattenBootstrappedNet( 
         input_shape = env.observation_space.shape[0] + env.action_space.shape[0],
         output_shape = 1,
         head_num=env.num_tasks,
         **params['net'] )
+
+    print("qf1: ", qf1)
+    
     qf2 = networks.FlattenBootstrappedNet( 
         input_shape = env.observation_space.shape[0] + env.action_space.shape[0],
         output_shape = 1,
         head_num=env.num_tasks,
         **params['net'] )
+    print("qf2: ", qf2)
+    
     
     example_ob = env.reset()
     example_dict = { 

@@ -1,0 +1,6 @@
+torch==1.7
+posix_ipc
+tensorboardX
+tabulate
+gym
+seaborn
