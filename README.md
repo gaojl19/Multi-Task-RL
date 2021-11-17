@@ -1,3 +1,6 @@
+# Multi-task RL
+1. Add SingleHead SAC for single task training
+
 # Soft-Module
 
 Implementation for "Multi-task Reinforcement Learning with Soft Modularization"
