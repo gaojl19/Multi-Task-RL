@@ -398,6 +398,9 @@ class AsyncMultiTaskParallelCollectorUniform(AsyncSingleTaskParallelCollector):
             env_cls = self.env_cls[task]
             
             self.env_info.env_rank = i
+            # print("task: ", task)
+            # print("task_cls: ", env_cls)
+            # print("task_args: ", self.env_args[1][task])
             
             self.env_info.env_args = single_mt_env_args
             self.env_info.env_args["task_cls"] = env_cls

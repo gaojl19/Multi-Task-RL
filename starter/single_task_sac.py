@@ -1,4 +1,6 @@
+import json
 import sys
+from metaworld.envs.mujoco.sawyer_xyz.base import OBS_TYPE
 # import sys
 sys.path.append(".") 
 
@@ -36,6 +38,7 @@ from torchrl.collector.para.async_mt import AsyncMultiTaskParallelCollectorUnifo
 from torchrl.replay_buffers.shared import SharedBaseReplayBuffer
 from torchrl.replay_buffers.shared import AsyncSharedReplayBuffer
 from metaworld.envs.mujoco.env_dict import EASY_MODE_CLS_DICT, EASY_MODE_ARGS_KWARGS
+from metaworld.envs.mujoco.env_dict import HARD_MODE_CLS_DICT, HARD_MODE_ARGS_KWARGS
 import gym
 
 from metaworld_utils.meta_env import get_meta_env
@@ -43,14 +46,23 @@ from metaworld_utils.meta_env import get_meta_env
 def experiment(args):
 
     device = torch.device("cuda:{}".format(args.device) if args.cuda else "cpu")
+    # print(args)
     
     # print("get_meta_env params: ", params['env_name'], params['env'], params['meta_env'])
-    env_name = TASK_ENV_DICT[params['task_name']]
+    env_name = TASK_ENV_DICT[args.task_name]
+    
+    # cls_dicts = {'train': {args.task_name: EASY_MODE_CLS_DICT[args.task_name]}, 'test':{args.task_name: EASY_MODE_CLS_DICT[args.task_name]}}
+    # cls_args = {'train': {args.task_name: EASY_MODE_ARGS_KWARGS[args.task_name]}, 'test':{args.task_name: EASY_MODE_ARGS_KWARGS[args.task_name]}}
+    
+    cls_dicts = {args.task_name: EASY_MODE_CLS_DICT[args.task_name]}
+    cls_args = {args.task_name: EASY_MODE_ARGS_KWARGS[args.task_name]}
+    
+    # set cls_args['kwargs']['obs_type'] = params['meta_env']['obs_type']
+    cls_args[args.task_name]['kwargs']['obs_type'] = params['meta_env']['obs_type']
+    
     
     #env, cls_dicts, cls_args = get_meta_env(params['env_name'], params['env'], params['meta_env'])
     env = get_meta_env(env_name, params['env'], params['meta_env'], return_dicts=False)
-    cls_dicts = {params['task_name']:EASY_MODE_CLS_DICT[params['task_name']]}
-    cls_args = {params['task_name']:EASY_MODE_ARGS_KWARGS[params['task_name']]}
 
     env.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -62,7 +74,7 @@ def experiment(args):
 
     experiment_name = os.path.split( os.path.splitext( args.config )[0] )[-1] if args.id is None \
         else args.id
-    logger = Logger( experiment_name , params['env_name'], args.seed, params, args.log_dir )
+    logger = Logger( experiment_name , env_name, args.seed, params, args.log_dir, args.task_name)
 
     params['general_setting']['env'] = env
     params['general_setting']['logger'] = logger
@@ -141,4 +153,6 @@ def experiment(args):
     agent.train()
 
 if __name__ == "__main__":
+
     experiment(args)
+    

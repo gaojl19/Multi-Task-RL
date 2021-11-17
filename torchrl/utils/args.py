@@ -46,10 +46,15 @@ def get_args():
     # q function snapshot
     parser.add_argument("--qf2_snap", type=str,   default=None,
                         help="policy snapshot path", )
+    
+    # single task learning name
+    parser.add_argument("--task_name", type=str, default=None,
+                        help="input name for single task training",)
 
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
+    
 
     return args
 

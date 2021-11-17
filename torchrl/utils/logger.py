@@ -9,7 +9,7 @@ import json
 import csv
 
 class Logger():
-    def __init__(self, experiment_id, env_name, seed, params, log_dir = "./log"):
+    def __init__(self, experiment_id, env_name, seed, params, log_dir = "./log", task_name=None):
 
         self.logger = logging.getLogger("{}_{}_{}".format(experiment_id,env_name,str(seed)))
 
@@ -23,7 +23,7 @@ class Logger():
         self.logger.addHandler( sh )
         self.logger.setLevel(logging.INFO)
 
-        work_dir = os.path.join( log_dir, experiment_id, env_name, str(seed) )
+        work_dir = os.path.join( log_dir, experiment_id, env_name, task_name, str(seed) )
         self.work_dir = work_dir
         if os.path.exists( work_dir ):
             shutil.rmtree(work_dir)
