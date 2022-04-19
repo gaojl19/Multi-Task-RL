@@ -355,11 +355,19 @@ class ModularGuassianGatedCascadeCondContPolicy(networks.ModularGatedCascadeCond
 
 class MultiHeadGuassianContPolicy(networks.BootstrappedNet):
     def forward(self, x, idx):
+        
         x = super().forward(x, idx)
+        # print("out shape: ", x.shape) [1,8]
 
+        # divide output into 2 parts: mean and covariance
         mean, log_std = x.chunk(2, dim=-1)
+        # print("mean shape: ", mean.shape) [1,4]
+        # print("log_std shape: ", log_std.shape) [1,4]
 
+        # make sure that min <= log_std <= max
         log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
+        
+        # calculate standard deviation
         std = torch.exp(log_std)
 
         return mean, std, log_std
@@ -374,6 +382,8 @@ class MultiHeadGuassianContPolicy(networks.BootstrappedNet):
 
         dis = TanhNormal(mean, std)
 
+        # print(dis.entropy().shape) [1,4] -- same as mean and log_std
+        # sum all dimensions
         ent = dis.entropy().sum(-1, keepdim=True) 
 
         dic = {
@@ -383,11 +393,16 @@ class MultiHeadGuassianContPolicy(networks.BootstrappedNet):
         }
 
         if return_log_probs:
+            # sample z from N(mean, std)
+            # action = tanh(z) [batch_size, 1, 4]  z = z [batch_size, 1, 4]
             action, z = dis.rsample( return_pretanh_value = True )
+            
             log_prob = dis.log_prob(
                 action,
                 pre_tanh_value=z
             )
+            
+            # ??
             log_prob = log_prob.sum(dim=-1, keepdim=True)
             dic["pre_tanh"] = z.squeeze(0)
             dic["log_prob"] = log_prob

@@ -49,12 +49,15 @@ def get_args():
     
     # single task learning name
     parser.add_argument("--task_name", type=str, default=None,
-                        help="input name for single task training",)
+                        help="task name for single task training",)
+    
+    # single task-env mapping name
+    parser.add_argument("--task_env", type=str, default=None,
+                        help="task to env mapping for single task training: MT10_task_env / MT50_task_env",)
+
 
     args = parser.parse_args()
-
     args.cuda = not args.no_cuda and torch.cuda.is_available()
-    
 
     return args
 

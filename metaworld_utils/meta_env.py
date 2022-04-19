@@ -4,6 +4,8 @@ from gym import Wrapper
 from gym.spaces import Box
 import numpy as np
 from metaworld.envs.mujoco.sawyer_xyz import *
+from metaworld.envs.mujoco.sawyer_xyz import sawyer_handle_press
+from metaworld.envs.mujoco.sawyer_xyz import sawyer_handle_pull
 from metaworld.envs.mujoco.multitask_env import MultiClassMultiTaskEnv
 from metaworld.core.serializable import Serializable
 import sys
@@ -22,6 +24,7 @@ class SingleWrapper(Wrapper):
         return self._env.reset()
 
     def seed(self, se):
+        # print(self._env)
         self._env.seed(se)
 
     def reset_with_index(self, task_idx):
@@ -80,23 +83,31 @@ class MTEnv(MultiClassMultiTaskEnv):
     @property
     def observation_space(self):
         if self._obs_type == 'plain':
+            print("plain")
             return self._task_envs[self.observation_space_index].observation_space
         else:
             plain_high = self._task_envs[self.observation_space_index].observation_space.high
             plain_low = self._task_envs[self.observation_space_index].observation_space.low
             goal_high = self.active_env.goal_space.high
             goal_low = self.active_env.goal_space.low
+            print("plain high: ", plain_high)
+            print("plain low: ", plain_low)
+            print("goal high: ", goal_high)
+            print("goal low: ", goal_low)
             if self._obs_type == 'with_goal':
+                print("with goal")
                 return Box(
                     high=np.concatenate([plain_high, goal_high] + [goal_high] * (self.repeat_times -1) ),
                     low=np.concatenate([plain_low, goal_low] + [goal_low] * (self.repeat_times -1 )))
             elif self._obs_type == 'with_goal_id' and self._fully_discretized:
+                print("with goal id and fully discretized")
                 goal_id_low = np.zeros(shape=(self._n_discrete_goals * self.repeat_times,))
                 goal_id_high = np.ones(shape=(self._n_discrete_goals * self.repeat_times,))
                 return Box(
                     high=np.concatenate([plain_high, goal_id_low,]),
                     low=np.concatenate([plain_low, goal_id_high,]))
             elif self._obs_type == 'with_goal_and_id' and self._fully_discretized:
+                print("with goal and id and fully discretized")
                 goal_id_low = np.zeros(shape=(self._n_discrete_goals,))
                 goal_id_high = np.ones(shape=(self._n_discrete_goals,))
                 return Box(
@@ -133,18 +144,34 @@ class MTEnv(MultiClassMultiTaskEnv):
         return obs
 
 
+# currently not using
 def generate_single_task_env(env_id, kwargs):
-    # print(globals()[env_id](**kwargs))
-    # exit(0)
-    env = globals()[env_id](**kwargs)
-    env = SingleWrapper(env)
+    
+    # Don't know why but these 2 envs are not included in the globals() dict
+    if env_id == "SawyerHandlePressEnv":
+        env = sawyer_handle_press.SawyerHandlePressEnv(**kwargs)
+        env = SingleWrapper(env)
+    elif env_id == "SawyerHandlePullEnv":
+        env = sawyer_handle_pull.SawyerHandlePullEnv(**kwargs)
+        env = SingleWrapper(env)
+    else:
+        env = globals()[env_id](**kwargs)
+        env = SingleWrapper(env)
+        
     return env
 
 
 def generate_mt_env(cls_dict, args_kwargs, **kwargs):
+    # cnt = 0
+    # for key in cls_dict.keys():
+    #     print(key)
+    #     cnt += 1
+        
+    # print(cls_dict)
     copy_kwargs = kwargs.copy()
     if "random_init" in copy_kwargs:
         del copy_kwargs["random_init"]
+  
     env = MTEnv(
         task_env_cls_dict=cls_dict,
         task_args_kwargs=args_kwargs,
@@ -169,6 +196,7 @@ def generate_single_mt_env(task_cls, task_args, env_rank, num_tasks,
     env.discretize_goal_space(env.goal.copy())
     if "sampled_index" in meta_env_params:
         del meta_env_params["sampled_index"]
+
     env = AugObs(env, env_rank, num_tasks, max_obs_dim, meta_env_params)
     env = wrap_continuous_env(env, **env_params)
 
@@ -214,7 +242,9 @@ def get_meta_env(env_id, env_param, mt_param, return_dicts=True):
     elif env_id == "mt50":
         env, cls_dicts, args_kwargs = generate_mt50_env(mt_param)
     else:
-        env = generate_single_task_env(env_id, mt_param)
+        env = env_id(**mt_param)
+        env = SingleWrapper(env)
+        # env = generate_single_task_env(env_id, mt_param)
 
     env = wrap_continuous_env(env, **env_param)
 

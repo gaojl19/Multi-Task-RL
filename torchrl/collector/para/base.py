@@ -23,18 +23,19 @@ class ParallelCollector(BaseCollector):
             worker_nums = 4,
             eval_worker_nums = 1,
             **kwargs):
-        
         super().__init__(
             env, pf, replay_buffer,
             **kwargs)
 
         self.env_cls  = env_cls
         self.env_args = env_args
-
+        
+        
         self.env_info.device = 'cpu' # CPU For multiprocess sampling
         self.shared_funcs = copy.deepcopy(self.funcs)
         for key in self.shared_funcs:
             self.shared_funcs[key].to(self.env_info.device)
+        print(self.env_info.device)
 
         # assert isinstance(replay_buffer, SharedBaseReplayBuffer), \
         #     "Should Use Shared Replay buffer"
@@ -46,8 +47,11 @@ class ParallelCollector(BaseCollector):
 
         self.manager = mp.Manager()
         self.train_epochs = train_epochs
+        print("train epochs: ", train_epochs)
         self.eval_epochs = eval_epochs
+        print("start worker")
         self.start_worker()
+        print("finish worker")
 
     @staticmethod
     def train_worker_process(cls, shared_funcs, env_info,
@@ -181,6 +185,7 @@ class ParallelCollector(BaseCollector):
         train_rews = []
         train_epoch_reward = 0
 
+        # load network parameters from the newest trained version
         for key in self.shared_funcs:
             self.shared_funcs[key].load_state_dict(self.funcs[key].state_dict())
         for _ in range(self.worker_nums):
@@ -258,8 +263,10 @@ class AsyncParallelCollector(ParallelCollector):
         train_rews = []
         train_epoch_reward = 0
 
+        # load parameters for policy function:
         for key in self.shared_funcs:
             self.shared_funcs[key].load_state_dict(self.funcs[key].state_dict())
+            
         for _ in range(self.worker_nums):
             worker_rst = self.shared_que.get()
             train_rews += worker_rst["train_rewards"]

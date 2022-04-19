@@ -279,25 +279,22 @@ class BootstrappedNet(Net):
         output_shape *= self.head_num
         super().__init__(output_shape = output_shape, **kwargs)
 
+    # TODO: understand this part!
     def forward(self, x, idx):
         base_shape = x.shape[:-1]
 
-        # print("base shape: ", base_shape) torch.Size([1])
+        # print("base shape: ", base_shape) # [batch_size, 1]
         out = super().forward(x)
         out_shape = base_shape + torch.Size([self.origin_output_shape, self.head_num])
-        # print("out_shape:", out_shape) out_shape: torch.Size([1, 8, 10])
+        # print("out_shape:", out_shape) # [batch_size, 1, 8, 1] (8 = 4 *2) or [batch_size, 1, 1, 1]
         view_idx_shape = base_shape + torch.Size([1, 1])
         expand_idx_shape = base_shape + torch.Size([self.origin_output_shape, 1])
         
         out = out.reshape(out_shape)
-
         idx = idx.view(view_idx_shape)
-        # print("view_idx_shape:", view_idx_shape) torch.Size([1, 1, 1])
         idx = idx.expand(expand_idx_shape)
-        # print("expand_idx_shape: ", expand_idx_shape) torch.Size([1, 8, 1])
 
         out = out.gather(-1, idx).squeeze(-1)
-        # print("out: ", out) out:  tensor([[ 9.1509e-04,  2.4704e-05,  6.3533e-04,  6.2731e-04,  9.4791e-04, -8.8663e-03, -1.2298e-02, -6.0174e-04]])
         return out
 
 

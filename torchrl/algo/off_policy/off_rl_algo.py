@@ -52,6 +52,7 @@ class OffRLAlgo(RLAlgo):
             infos = self.update( batch )
             self.logger.add_update_info( infos )
 
+    
     def pretrain(self):
         total_frames = 0
         self.pretrain_epochs * self.collector.worker_nums * self.epoch_frames
@@ -79,5 +80,4 @@ class OffRLAlgo(RLAlgo):
             self.logger.add_epoch_info(pretrain_epoch, total_frames, time.time() - start, infos, csv_write=False )
         
         self.pretrain_frames = total_frames
-
         self.logger.log("Finished Pretrain")

@@ -10,12 +10,13 @@ import torchrl.policies as policies
 
 from torchrl.env.get_env import *
 from torchrl.env.continuous_wrapper import *
+from torchrl.collector.base import EnvInfo
 
 from metaworld_utils.meta_env import generate_single_mt_env
 
 from metaworld_utils.meta_env import get_meta_env
 
-from collections import OrderedDict
+from collections import OrderedDict, deque
 
 
 class AsyncSingleTaskParallelCollector(AsyncParallelCollector):
@@ -23,8 +24,10 @@ class AsyncSingleTaskParallelCollector(AsyncParallelCollector):
             self,
             reset_idx=False,
             **kwargs):
+        print("AsyncSingleTaskParallelCollector called")
         self.reset_idx = reset_idx
         super().__init__(**kwargs)
+        print("AsyncSingleTaskParallelCollector finished")
 
     @staticmethod
     def eval_worker_process(
@@ -46,6 +49,7 @@ class AsyncSingleTaskParallelCollector(AsyncParallelCollector):
             pf.load_state_dict(shared_pf.state_dict())
 
             eval_rews = []
+            images = []
 
             done = False
             success = 0
@@ -62,6 +66,8 @@ class AsyncSingleTaskParallelCollector(AsyncParallelCollector):
                     rew += r
                     if env_info.eval_render:
                         env_info.env.render()
+                        # image = env_info.env.get_image(600,600,None)
+                        # images.append(image)
 
                     current_success = max(current_success, info["success"])
 
@@ -71,7 +77,8 @@ class AsyncSingleTaskParallelCollector(AsyncParallelCollector):
 
             shared_que.put({
                 'eval_rewards': eval_rews,
-                'success_rate': success / env_info.eval_episodes
+                'success_rate': success / env_info.eval_episodes,
+                'image': images,
             })
 
     def start_worker(self):
@@ -106,32 +113,42 @@ class AsyncSingleTaskParallelCollector(AsyncParallelCollector):
             eval_p.start()
             self.eval_workers.append(eval_p)
 
-    def eval_one_epoch(self):
+    def eval_one_epoch(self, get_action = False):
         # self.eval_start_barrier.wait()
         eval_rews = []
+        images = []
+        actions = []
         mean_success_rate = 0
         self.shared_funcs["pf"].load_state_dict(self.funcs["pf"].state_dict())
         for _ in range(self.eval_worker_nums):
             worker_rst = self.eval_shared_que.get()
             eval_rews += worker_rst["eval_rewards"]
             mean_success_rate += worker_rst["success_rate"]
-
+            images += worker_rst["image"]
+            actions += worker_rst["act"]
+        
         return {
             'eval_rewards':eval_rews,
-            'mean_success_rate': mean_success_rate / self.eval_worker_nums
+            'mean_success_rate': mean_success_rate / self.eval_worker_nums,
+            'images': images,
+            'act': actions
         }
 
 
 class AsyncMultiTaskParallelCollectorUniform(AsyncSingleTaskParallelCollector):
 
     def __init__(self, progress_alpha=0.1, **kwargs):
+        
+        # WHAT IS PROGRESS ALPHA
         super().__init__(**kwargs)
+        
         self.tasks = list(self.env_cls.keys())
         self.tasks_mapping = {}
         for idx, task_name in enumerate(self.tasks):
             self.tasks_mapping[task_name] = idx
         self.tasks_progress = [0 for _ in range(len(self.tasks))]
         self.progress_alpha = progress_alpha
+        print("AsyncMultiTaskParallelCollectorUniform finished")
 
     @classmethod
     def take_actions(cls, funcs, env_info, ob_info, replay_buffer):
@@ -284,7 +301,7 @@ class AsyncMultiTaskParallelCollectorUniform(AsyncSingleTaskParallelCollector):
 
         # Rebuild Env
         env_info.env = env_info.env_cls(**env_info.env_args)
-
+        
         norm_obs_flag = env_info.env_args["env_params"]["obs_norm"]
 
         env_info.env.eval()
@@ -297,7 +314,9 @@ class AsyncMultiTaskParallelCollectorUniform(AsyncSingleTaskParallelCollector):
                 shared_que.put({
                     'eval_rewards': None,
                     'success_rate': None,
-                    'task_name': task_name
+                    'task_name': task_name,
+                    'image': None,
+                    'act': None
                 })
                 continue
             if current_epoch > epochs:
@@ -316,13 +335,19 @@ class AsyncMultiTaskParallelCollectorUniform(AsyncSingleTaskParallelCollector):
                 # }
 
             eval_rews = []  
+            rounds_images = []
+            actions = []
 
             done = False
             success = 0
+            initial_ob = []
             for idx in range(env_info.eval_episodes):
 
                 eval_ob = env_info.env.reset()
                 rew = 0
+                images = []
+                actions = []
+                initial_ob.append(eval_ob)
 
                 task_idx = env_info.env_rank
                 current_success = 0
@@ -339,6 +364,7 @@ class AsyncMultiTaskParallelCollectorUniform(AsyncSingleTaskParallelCollector):
                                 embedding_input, [task_idx] )
                         else:
                             act = pf.eval_act( torch.Tensor( eval_ob ).to(env_info.device).unsqueeze(0), idx_input )
+                        
                     else:
                         if embedding_flag:
                             embedding_input = torch.zeros(env_info.num_tasks)
@@ -352,17 +378,25 @@ class AsyncMultiTaskParallelCollectorUniform(AsyncSingleTaskParallelCollector):
                     eval_ob, r, done, info = env_info.env.step( act )
                     rew += r
                     if env_info.eval_render:
-                        env_info.env.render()
+                        # env_info.env.render()
+                        image = env_info.env.get_image(400,400,"frontview")
+                        images.append(image)
                     current_success = max(current_success, info["success"])
+                    actions.append(act)
 
                 eval_rews.append(rew)
                 done = False
                 success += current_success
+                rounds_images.append(images)
 
             shared_que.put({
                 'eval_rewards': eval_rews,
                 'success_rate': success / env_info.eval_episodes,
-                'task_name': task_name
+                'task_name': task_name,
+                'image': rounds_images,
+                'act': actions,
+                'eval_cls': env_info.env,
+                'initial_ob': initial_ob
             })
 
     def start_worker(self):
@@ -398,10 +432,6 @@ class AsyncMultiTaskParallelCollectorUniform(AsyncSingleTaskParallelCollector):
             env_cls = self.env_cls[task]
             
             self.env_info.env_rank = i
-            # print("task: ", task)
-            # print("task_cls: ", env_cls)
-            # print("task_args: ", self.env_args[1][task])
-            
             self.env_info.env_args = single_mt_env_args
             self.env_info.env_args["task_cls"] = env_cls
             self.env_info.env_args["task_args"] = copy.deepcopy(self.env_args[1][task])
@@ -463,10 +493,13 @@ class AsyncMultiTaskParallelCollectorUniform(AsyncSingleTaskParallelCollector):
             eval_p.start()
             self.eval_workers.append(eval_p)
 
-
     def eval_one_epoch(self):
         
         eval_rews = []
+        images = []
+        actions = []
+        initial_obs = []
+        
         mean_success_rate = 0
         self.shared_funcs["pf"].load_state_dict(self.funcs["pf"].state_dict())
 
@@ -478,6 +511,10 @@ class AsyncMultiTaskParallelCollectorUniform(AsyncSingleTaskParallelCollector):
             if worker_rst["eval_rewards"] is not None:
                 active_task_counts += 1
                 eval_rews += worker_rst["eval_rewards"]
+                images += worker_rst["image"]
+                actions += worker_rst['act']
+                env_cls = worker_rst['eval_cls']
+                initial_obs.append(worker_rst['initial_ob'])
                 mean_success_rate += worker_rst["success_rate"]
                 tasks_result.append((worker_rst["task_name"], worker_rst["success_rate"], np.mean(worker_rst["eval_rewards"])))
 
@@ -496,10 +533,13 @@ class AsyncMultiTaskParallelCollectorUniform(AsyncSingleTaskParallelCollector):
                 self.progress_alpha * success_rate
 
         dic['eval_rewards']      = eval_rews
+        dic['image']             = images       #[[trial1],[trial2]...]
         dic['mean_success_rate'] = mean_success_rate / active_task_counts
+        dic['act']               = actions
+        dic['eval_cls']          = env_cls
+        dic['initial_ob']        = initial_obs
 
         return dic
-
 
     def train_one_epoch(self):
         train_rews = []
@@ -700,3 +740,5 @@ class AsyncMultiTaskParallelCollectorUniformImitation(AsyncSingleTaskParallelCol
         dic['mean_success_rate'] = mean_success_rate / active_task_counts
 
         return dic
+
+

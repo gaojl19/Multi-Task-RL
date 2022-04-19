@@ -17,6 +17,7 @@ class TanhNormal(Distribution):
         :param normal_std: Std of the normal distribution
         :param epsilon: Numerical stability epsilon when computing log-prob.
         """
+        
         self.normal_mean = normal_mean
         self.normal_std = normal_std
         self.normal = Normal(normal_mean, normal_std)
@@ -30,8 +31,8 @@ class TanhNormal(Distribution):
             return torch.tanh(z)
 
     def log_prob(self, value, pre_tanh_value=None):
+        
         """
-
         :param value: some value, x
         :param pre_tanh_value: arctanh(x)
         :return:
@@ -69,11 +70,12 @@ class TanhNormal(Distribution):
                  torch.ones(self.normal_std.size())
              ).sample().to(self.normal_mean.device)
          )
-
+        
         if return_pretanh_value:
             return torch.tanh(z), z
         else:
             return torch.tanh(z)
 
     def entropy(self):
+        # calculate the entropy of Normal(normal_mean, normal_std)
         return self.normal.entropy()

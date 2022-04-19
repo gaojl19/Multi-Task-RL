@@ -51,7 +51,6 @@ class BaseCollector:
         epoch_frames=1000,
         device='cpu',
         max_episode_frames = 999):
-
         self.pf = pf
         self.replay_buffer = replay_buffer
 
@@ -64,6 +63,7 @@ class BaseCollector:
         self.eval_env._reward_scale = 1
         self.eval_episodes = eval_episodes
         self.eval_render = eval_render
+        
 
         self.env_info = EnvInfo(
             env, device, train_render, eval_render,
@@ -87,6 +87,7 @@ class BaseCollector:
 
         self.worker_nums = 1
         self.active_worker_nums = 1
+    
 
     @classmethod
     def take_actions(cls, funcs, env_info, ob_info, replay_buffer):
@@ -162,7 +163,6 @@ class BaseCollector:
 
         self.eval_env = copy.copy(self.env)
         self.eval_env.eval()
-        # print(self.eval_env._obs_mean)
         traj_lens = []
         for _ in range(self.eval_episodes):
 

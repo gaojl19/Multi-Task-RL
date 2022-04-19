@@ -4,7 +4,8 @@
         "obs_norm":false
     },
     "meta_env":{
-        "obs_type": "plain"
+        "obs_type": "with_goal",
+        "random_init": true
     },
     "replay_buffer":{
         "size": 1e6
@@ -28,7 +29,9 @@
         "tau" : 0.005,
         "opt_times" : 200,
 
-        "eval_episodes" : 3
+        "eval_episodes" : 3,
+        "train_render": false,
+        "eval_render": false
     },
     "sac":{
         

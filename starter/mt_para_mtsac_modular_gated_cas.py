@@ -45,6 +45,7 @@ def experiment(args):
     env, cls_dicts, cls_args = get_meta_env( params['env_name'], params['env'], params['meta_env'])
 
     env.seed(args.seed)
+    # random.seed(args.seed)
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     random.seed(args.seed)
@@ -70,12 +71,14 @@ def experiment(args):
 
     example_ob = env.reset()
     example_embedding = env.active_task_one_hot
+    print("example_ob:", example_ob)
 
     pf = policies.ModularGuassianGatedCascadeCondContPolicy(
         input_shape=env.observation_space.shape[0],
         em_input_shape=np.prod(example_embedding.shape),
         output_shape=2 * env.action_space.shape[0],
         **params['net'])
+    # print("pf: ", pf)
 
     if args.pf_snap is not None:
         pf.load_state_dict(torch.load(args.pf_snap, map_location='cpu'))
@@ -85,12 +88,17 @@ def experiment(args):
         em_input_shape=np.prod(example_embedding.shape),
         output_shape=1,
         **params['net'])
+    # print("qf1: ", qf1)
+    
+    
     qf2 = networks.FlattenModularGatedCascadeCondNet( 
         input_shape=env.observation_space.shape[0] + env.action_space.shape[0],
         em_input_shape=np.prod(example_embedding.shape),
         output_shape=1,
         **params['net'])
+    # print("qf2: ", qf2)
 
+    # train from previously saved nets
     if args.qf1_snap is not None:
         qf1.load_state_dict(torch.load(args.qf2_snap, map_location='cpu'))
     if args.qf2_snap is not None:
@@ -105,7 +113,7 @@ def experiment(args):
         "task_idxs": [0],
         "embedding_inputs": example_embedding
     }
-
+    # print(example_dict)
     replay_buffer = AsyncSharedReplayBuffer(int(buffer_param['size']),
             args.worker_nums
     )
@@ -116,8 +124,7 @@ def experiment(args):
     epochs = params['general_setting']['pretrain_epochs'] + \
         params['general_setting']['num_epochs']
 
-    print(env.action_space)
-    print(env.observation_space)
+    
     params['general_setting']['collector'] = AsyncMultiTaskParallelCollectorUniform(
         env=env, pf=pf, replay_buffer=replay_buffer,
         env_cls = cls_dicts, env_args = [params["env"], cls_args, params["meta_env"]],
@@ -131,6 +138,7 @@ def experiment(args):
     )
     params['general_setting']['batch_size'] = int(params['general_setting']['batch_size'])
     params['general_setting']['save_dir'] = osp.join(logger.work_dir,"model")
+    
     agent = MTSAC(
         pf = pf,
         qf1 = qf1,

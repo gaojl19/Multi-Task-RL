@@ -19,6 +19,7 @@ class BaseWrapper(gym.Wrapper):
         self.training = False
 
     def render(self, mode='human', **kwargs):
+        # mode = "rgb_array"
         return self._wrapped_env.render(mode=mode, **kwargs)
 
     def __getattr__(self, attr):

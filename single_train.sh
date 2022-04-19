@@ -1,2 +1,2 @@
-source seed.sh
-python starter/single_task_sac.py --config meta_config/mt10/single_task_sac.json --id MT10_Single_Task --seed $SEED --worker_nums 1 --eval_worker_nums 1 --no_cuda --task_name reach-v1
+# python starter/single_task_sac.py --config meta_config/mt10/single_task_sac.json --task_name sweep-into-v1 --id MT50_Single_Task --seed 32 --worker_nums 1 --eval_worker_nums 1 --task_env MT50_task_env --no_cuda
+python starter/single_task_sac.py --config meta_config/mt10/single_task_sac.json --task_name reach-v1 --id MT10_Single_Task --seed 32 --worker_nums 1 --eval_worker_nums 1 --task_env MT10_task_env --no_cuda

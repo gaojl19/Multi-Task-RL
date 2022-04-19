@@ -9,6 +9,7 @@ import time
 import os.path as osp
 
 import numpy as np
+import metaworld
 
 from torchrl.utils import get_args
 from torchrl.utils import get_params
@@ -47,7 +48,8 @@ def experiment(args):
     # print("cls_dicts: ", cls_dicts) 'reach-v1': <class 'metaworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place.SawyerReachPushPickPlaceEnv'>
     # print("cls_args: ", cls_args)  'reach-v1': {'args': [], 'kwargs': {'obs_type': 'plain', 'task_type': 'reach'}}
 
-    env.seed(args.seed)
+
+    # env.seed(args.seed)
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     if args.cuda:
@@ -68,21 +70,27 @@ def experiment(args):
     import torch.multiprocessing as mp
     mp.set_start_method('spawn', force=True)
 
+    
     pf = policies.MultiHeadGuassianContPolicy (
         input_shape = env.observation_space.shape[0], 
         output_shape = 2 * env.action_space.shape[0],
         head_num=env.num_tasks,
         **params['net'] )
+    print("pf: ", pf)
+    
     qf1 = networks.FlattenBootstrappedNet( 
         input_shape = env.observation_space.shape[0] + env.action_space.shape[0],
         output_shape = 1,
         head_num=env.num_tasks,
         **params['net'] )
+    print("qf1: ", qf1)
+    
     qf2 = networks.FlattenBootstrappedNet( 
         input_shape = env.observation_space.shape[0] + env.action_space.shape[0],
         output_shape = 1,
         head_num=env.num_tasks,
         **params['net'] )
+    print("qf2: ", qf2)
     
     example_ob = env.reset()
     example_dict = { 
