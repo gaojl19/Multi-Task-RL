@@ -65,9 +65,11 @@ def experiment(args):
     cls_args[args.task_name]['kwargs']['random_init'] = params['meta_env']['random_init']
     
     from metaworld_utils.concurrent_sawyer import ConcurrentSawyerEnv
-    cls_dicts = {"push_pick_place": ConcurrentSawyerEnv}
-    cls_args = {"push_pick_place": dict(args=[], kwargs={'obs_type': params['meta_env']['obs_type'], 'task_type': ['push', 'pick_place']})}
+    from metaworld_utils.customize_sawyer_push import CustomizeSawyerEnv
+    cls_dicts = {"push": CustomizeSawyerEnv}
+    cls_args = {"push": dict(args=[], kwargs={'obs_type': params['meta_env']['obs_type'], 'task_type': 'push'})}
     env_name =  ConcurrentSawyerEnv
+
     
     #env, cls_dicts, cls_args = get_meta_env(params['env_name'], params['env'], params['meta_env'])
     env = get_meta_env(env_name, params['env'], params['meta_env'], return_dicts=False)
@@ -75,8 +77,8 @@ def experiment(args):
     
     example_ob = env.reset()
     example_dict = { 
-        "obs": example_ob,
-        "next_obs": example_ob,
+        "obs": example_ob[:env.observation_space.shape[0]],
+        "next_obs": example_ob[:env.observation_space.shape[0]],
         "acts": env.action_space.sample(),
         "rewards": [0],
         "terminals": [False],
@@ -109,7 +111,7 @@ def experiment(args):
 
     print("num tasks: ", env.num_tasks)
     pf = policies.MultiHeadGuassianContPolicy(
-        input_shape = example_ob.shape[0], 
+        input_shape = env.observation_space.shape[0], 
         output_shape = 2 * env.action_space.shape[0],
         head_num=env.num_tasks,
         **params['net'] )
@@ -121,14 +123,14 @@ def experiment(args):
 
     # print("pf: ", pf)
     qf1 = networks.FlattenBootstrappedNet( 
-        input_shape = example_ob.shape[0] + env.action_space.shape[0],
+        input_shape = env.observation_space.shape[0] + env.action_space.shape[0],
         output_shape = 1,
         head_num=env.num_tasks,
         **params['net'] )
 
     # print("qf1: ", qf1)
     qf2 = networks.FlattenBootstrappedNet( 
-        input_shape = example_ob.shape[0] + env.action_space.shape[0],
+        input_shape = env.observation_space.shape[0] + env.action_space.shape[0],
         output_shape = 1,
         head_num=env.num_tasks,
         **params['net'] )
@@ -172,7 +174,7 @@ def experiment(args):
         # eval_worker_nums=args.eval_worker_nums,
         train_epochs = epochs, eval_epochs= params['general_setting']['num_epochs'],
         eval_render = params['general_setting']['eval_render'],
-        input_shape = example_ob.shape[0]
+        input_shape = env.observation_space.shape[0]
     )
 
     params['general_setting']['batch_size'] = int(params['general_setting']['batch_size'])

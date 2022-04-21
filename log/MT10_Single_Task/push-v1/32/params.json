@@ -5,7 +5,7 @@
   },
   "meta_env": {
     "obs_type": "with_goal",
-    "random_init": false
+    "random_init": true
   },
   "replay_buffer": {
     "size": 1000000.0

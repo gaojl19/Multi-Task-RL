@@ -25,6 +25,7 @@ class AsyncMultiTaskSerialCollectorUniform():
         device="cpu", max_episode_frames = 999, reset_idx=False):
 
         self.env = env
+        print("training env: ", env)
         self.pf = pf
         self.env.train()
         continuous = isinstance(self.env.action_space, gym.spaces.Box)
@@ -50,7 +51,7 @@ class AsyncMultiTaskSerialCollectorUniform():
         
         # device specification
         self.device = device
-        print("collector device: ", device)
+        # print("collector device: ", device)
 
         self.to(self.device)
 
@@ -89,11 +90,10 @@ class AsyncMultiTaskSerialCollectorUniform():
     
     @classmethod
     def take_actions(cls, pf, env_info, ob_info, replay_buffer, input_shape):
-
+        
         ob = ob_info["ob"]
         # Adjust ob shape
         ob = ob[:input_shape]
-        
         
         task_idx = env_info.env_rank
         idx_flag = isinstance(pf, policies.MultiHeadGuassianContPolicy)
@@ -167,7 +167,7 @@ class AsyncMultiTaskSerialCollectorUniform():
             next_ob = env_info.env.reset()
             env_info.finish_episode()
             env_info.start_episode() # reset current_step
-
+        
         replay_buffer.add_sample(sample_dict, env_info.env_rank)
 
         return next_ob, done, reward, info
@@ -192,6 +192,8 @@ class AsyncMultiTaskSerialCollectorUniform():
         }
         
         train_rews = []
+        goal_dist = []
+        return_dist = []
         train_epoch_reward = 0
         active_worker_nums = 0
 
@@ -218,6 +220,8 @@ class AsyncMultiTaskSerialCollectorUniform():
                         #   shared_dict=self.shared_dict)
             train_rews += result["train_rewards"]
             train_epoch_reward += result["train_epoch_reward"]
+            goal_dist += result["goal_dist"]
+            return_dist += result["return_dist"]
             active_worker_nums += 1
         
         self.active_worker_nums = active_worker_nums
@@ -225,7 +229,9 @@ class AsyncMultiTaskSerialCollectorUniform():
         
         return {
             'train_rewards':train_rews,
-            'train_epoch_reward':train_epoch_reward
+            'train_epoch_reward':train_epoch_reward,
+            'goal_dist': goal_dist,
+            'return_dist': return_dist
         }
         
         
@@ -324,6 +330,8 @@ class AsyncMultiTaskSerialCollectorUniform():
         # initialize
         done = False
         train_rews = []
+        goal_dist = []
+        return_dist = []
         train_rew = 0
         train_epoch_reward = 0
         
@@ -345,6 +353,8 @@ class AsyncMultiTaskSerialCollectorUniform():
             train_epoch_reward += reward
             if done:
                 train_rews.append(train_rew)
+                goal_dist.append(_["goalDist"])
+                return_dist.append(_["returnDist"])
                 train_rew = 0
 
             if norm_obs_flag:
@@ -356,7 +366,9 @@ class AsyncMultiTaskSerialCollectorUniform():
 
         return {
             'train_rewards':train_rews,
-            'train_epoch_reward':train_epoch_reward
+            'train_epoch_reward':train_epoch_reward,
+            'goal_dist': goal_dist,
+            'return_dist': return_dist
         }
             
     
